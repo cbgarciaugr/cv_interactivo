@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Currículum — Catalina B. García García</title>
+  <style>
+    :root{
+      --bg:#f6f7fb; --card:#ffffff; --accent:#2b6cb0; --muted:#6b7280;
+      --radius:10px; --maxw:1000px;
+    }
+    body{font-family:Inter,system-ui,Segoe UI,Arial; background:var(--bg); color:#111;margin:0;padding:24px; display:flex; justify-content:center;}
+    .container{width:100%; max-width:var(--maxw);}    
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+    .avatar{width:72px;height:72px;border-radius:12px;background:linear-gradient(135deg,#dbeafe,#bfdbfe);display:flex;align-items:center;justify-content:center;font-weight:700;color:#1e3a8a}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:0;color:var(--muted)}
+    nav{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+    nav button{background:transparent;border:1px solid transparent;padding:8px 12px;border-radius:8px;cursor:pointer}
+    nav button:hover{background:#fff}
+    .controls{Display:flex;gap:8px;margin-left:auto}
+    .card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,0.06)}
+    .section-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+    .section-header h2{margin:0;font-size:16px}
+    .entries{display:flex;flex-direction:column;gap:8px}
+    .entry{border:1px dashed #e6eef8;padding:10px;border-radius:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+    .entry .meta{flex:1}
+    .entry .meta h3{margin:0 0 6px 0;font-size:15px}
+    .entry .meta p{margin:0;color:var(--muted)}
+    .entry .files{min-width:160px;text-align:right}
+    .small{font-size:13px;color:var(--muted)}
+    .btn{background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
+    .btn.secondary{background:#e6eef8;color:#0b4a82}
+    .btn.ghost{background:transparent;color:var(--accent);border:1px solid #dbeafe}
+    .actions{display:flex;gap:8px;align-items:center}
+    input[type="file"]{display:block}
+    footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+    .hidden{display:none}
+    @media (max-width:720px){
+      .entry{flex-direction:column;align-items:stretch}
+      .entry .files{text-align:left}
+    }
+  </style>
+  <!-- JSZip para crear ZIPs en el cliente -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="avatar">CB</div>
+      <div>
+        <h1>Catalina B. García García</h1>
+        <p class="lead">Currículum interactivo — añade méritos y adjunta certificados</p>
+      </div>
+      <div class="controls">
+        <button class="btn" id="exportZip">Exportar ZIP</button>
+        <button class="btn secondary" id="exportJson">Exportar JSON</button>
+        <label class="btn ghost" for="importFile" title="Importar ZIP exportado anteriormente">Importar</label>
+        <input id="importFile" type="file" accept=".zip,application/zip" class="hidden">
+      </div>
+    </header>
+
+    <nav>
+      <button data-target="formacion">Formación</button>
+      <button data-target="docencia">Docencia</button>
+      <button data-target="investigacion">Investigación</button>
+      <button data-target="transferencia">Transferencia</button>
+      <button data-target="gestion">Gestión</button>
+    </nav>
+
+    <main id="mainContent">
+      <!-- Personal -->
+      <section class="card" id="personalCard">
+        <div class="section-header">
+          <h2>Datos personales</h2>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="inputName" placeholder="Nombre completo" value="Catalina B. García García" style="flex:1;padding:8px;border-radius:8px;border:1px solid #e6eef8">
+          <input id="inputEmail" placeholder="Email" style="width:260px;padding:8px;border-radius:8px;border:1px solid #e6eef8">
+        </div>
+      </section>
+
+      <!-- Sections -->
+      <div id="sectionsContainer">
+        <!-- template expanded by JS -->
+      </div>
+
+    </main>
+
+    <footer>
+      Herramienta local: los archivos adjuntos se guardan en memoria del navegador y se empaquetan al exportar ZIP.
+    </footer>
+  </div>
+
+  <script>
+    // Estructura de datos en memoria
+    const cv = {
+      personal: { name: 'Catalina B. García García', email: '' },
+      sections: {
+        formacion: [],
+        docencia: [],
+        investigacion: [],
+        transferencia: [],
+        gestion: []
+      }
+    };
+
+    // Utilidades
+    const uid = () => 'id-' + Math.random().toString(36).slice(2,9);
+
+    // Crear la UI de secciones
+    const sectionNames = {
+      formacion: 'Formación',
+      docencia: 'Docencia',
+      investigacion: 'Investigación',
+      transferencia: 'Transferencia',
+      gestion: 'Gestión'
+    };
+
+    const sectionsContainer = document.getElementById('sectionsContainer');
+
+    function createSectionBlock(key){
+      const el = document.createElement('section');
+      el.className = 'card';
+      el.id = 'section-' + key;
+
+      el.innerHTML = `
+        <div class="section-header">
+          <h2>${sectionNames[key]}</h2>
+          <div style="margin-left:auto" class="actions">
+            <button class="btn ghost add-entry" data-section="${key}">+ Añadir entrada</button>
+          </div>
+        </div>
+        <div class="entries" data-section="${key}"></div>
+      `;
+      sectionsContainer.appendChild(el);
+    }
+
+    // Render inicial
+    for (const k of Object.keys(sectionNames)) createSectionBlock(k);
+
+    // Eventos nav
+    document.querySelectorAll('nav button').forEach(b => {
+      b.addEventListener('click', () => {
+        const target = b.dataset.target;
+        document.getElementById('section-' + target).scrollIntoView({behavior:'smooth'});
+      });
+    });
+
+    // Añadir entrada: show a prompt dialog (simple)
+    function openAddDialog(sectionKey){
+      const title = prompt(`Título / grado para ${sectionNames[sectionKey]}:`,'Título, grado o cargo');
+      if (!title) return;
+      const year = prompt('Año (opcional):','2024') || '';
+      const desc = prompt('Descripción breve (opcional):','') || '';
+      const id = uid();
+      const entry = { id, title, year, description: desc, files: [] };
+      cv.sections[sectionKey].push(entry);
+      renderSection(sectionKey);
+      // After creating entry, open file picker for certificates if desired
+      if (confirm('¿Deseas adjuntar certificados ahora para esta entrada?')) {
+        openFilePickerForEntry(sectionKey, id);
+      }
+    }
+
+    // Render de una sección
+    function renderSection(sectionKey){
+      const container = document.querySelector(`.entries[data-section="${sectionKey}"]`);
+      container.innerHTML = '';
+      for (const entry of cv.sections[sectionKey]){
+        const div = document.createElement('div');
+        div.className = 'entry';
+        div.dataset.entryId = entry.id;
+        div.innerHTML = `
+          <div class="meta">
+            <h3>${escapeHtml(entry.title)} ${entry.year ? ' — ' + escapeHtml(entry.year) : ''}</h3>
+            <p class="small">${escapeHtml(entry.description)}</p>
+          </div>
+          <div class="files">
+            <div class="small">${entry.files.length} certificado(s)</div>
+            <div style="margin-top:8px" class="actions">
+              <button class="btn ghost attach" data-section="${sectionKey}" data-id="${entry.id}">Adjuntar</button>
+              <button class="btn" data-action="view" data-section="${sectionKey}" data-id="${entry.id}">Ver</button>
+              <button class="btn secondary" data-action="delete" data-section="${sectionKey}" data-id="${entry.id}">Eliminar</button>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      }
+    }
+
+    // Escapar html simple
+    function escapeHtml(s){ return String(s).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    // Open file picker and associate files with entry
+    function openFilePickerForEntry(sectionKey, entryId){
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.multiple = true;
+      input.accept = '*/*';
+      input.addEventListener('change', async (e)=>{
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        const entry = cv.sections[sectionKey].find(x => x.id === entryId);
+        if (!entry) return alert('Entrada no encontrada');
+        for (const f of files){
+          // store file as object with data (Blob) in memory
+          entry.files.push({ name: f.name, size: f.size, type: f.type, blob: f.slice() });
+        }
+        renderSection(sectionKey);
+      });
+      input.click();
+    }
+
+    // View entry files: show a simple popup listing files with download links
+    function viewEntryFiles(sectionKey, entryId){
+      const entry = cv.sections[sectionKey].find(x => x.id === entryId);
+      if (!entry) return alert('Entrada no encontrada');
+      let html = `Archivos de "${entry.title}":\n\n`;
+      if (!entry.files.length) return alert('No hay certificados adjuntos para esta entrada.');
+      const win = window.open('', '_blank');
+      if (!win) { alert('El navegador bloqueó la ventana emergente. Permite popups y vuelve a intentarlo.'); return; }
+      win.document.title = `Certificados — ${entry.title}`;
+      const list = entry.files.map((f,idx) => {
+        const url = URL.createObjectURL(f.blob);
+        return `<li><a href="${url}" download="${encodeURIComponent(f.name)}">${escapeHtml(f.name)}</a> (${Math.round(f.size/1024)} KB)</li>`;
+      }).join('');
+      win.document.body.innerHTML = `<h3>Certificados: ${escapeHtml(entry.title)}</h3><ul>${list}</ul><p style="color:#666">Cierra esta pestaña cuando hayas terminado (los enlaces usan URLs temporales del navegador).</p>`;
+    }
+
+    // Delete entry
+    function deleteEntry(sectionKey, entryId){
+      if (!confirm('¿Eliminar esta entrada y sus certificados?')) return;
+      cv.sections[sectionKey] = cv.sections[sectionKey].filter(x => x.id !== entryId);
+      renderSection(sectionKey);
+    }
+
+    // Delegación de botones
+    document.addEventListener('click', (e)=>{
+      const t = e.target;
+      if (t.matches('.add-entry')) {
+        openAddDialog(t.dataset.section);
+      } else if (t.matches('.attach')) {
+        openFilePickerForEntry(t.dataset.section, t.dataset.id);
+      } else if (t.matches('button[data-action="view"]')) {
+        viewEntryFiles(t.dataset.section, t.dataset.id);
+      } else if (t.matches('button[data-action="delete"]')) {
+        deleteEntry(t.dataset.section, t.dataset.id);
+      }
+    });
+
+    // Bind add-entry to initial buttons
+    document.querySelectorAll('.add-entry').forEach(b => {
+      b.addEventListener('click', () => openAddDialog(b.dataset.section));
+    });
+
+    // Export JSON of CV (without binary files)
+    document.getElementById('exportJson').addEventListener('click', ()=>{
+      const exportObj = structuredClone(cv);
+      // remove blobs for JSON export: keep file metadata only
+      for (const sec of Object.keys(exportObj.sections)){
+        for (const e of exportObj.sections[sec]){
+          e.files = e.files.map(f => ({ name: f.name, size: f.size, type: f.type }));
+        }
+      }
+      const blob = new Blob([JSON.stringify(exportObj, null, 2)], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'cv_catalina_garcia.json'; a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Export ZIP (JSON + all attached files)
+    document.getElementById('exportZip').addEventListener('click', async ()=>{
+      const zip = new JSZip();
+      // JSON without blob contents (metadata)
+      const exportObj = structuredClone(cv);
+      for (const sec of Object.keys(exportObj.sections)){
+        for (const e of exportObj.sections[sec]){
+          e.files = e.files.map(f => ({ name: f.name, size: f.size, type: f.type }));
+        }
+      }
+      zip.file('cv.json', JSON.stringify(exportObj, null, 2));
+      // Add files in folders: section/entryTitle/filename
+      for (const sec of Object.keys(cv.sections)){
+        for (const e of cv.sections[sec]){
+          for (const f of e.files){
+            // f.blob is a Blob
+            const folderPath = `${sec}/${sanitizeFilename(e.title)}/`;
+            // convert blob to arrayBuffer
+            const arr = await f.blob.arrayBuffer();
+            zip.file(folderPath + f.name, arr);
+          }
+        }
+      }
+      const content = await zip.generateAsync({type:'blob'});
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'cv_catalina_garcia.zip'; a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Import ZIP (expects the same structure created above)
+    document.getElementById('importFile').addEventListener('change', async (e)=>{
+      const file = e.target.files[0];
+      if (!file) return;
+      const zip = await JSZip.loadAsync(file);
+      // Read cv.json
+      if (!zip.file('cv.json')) return alert('ZIP no válido: falta cv.json');
+      const jsonText = await zip.file('cv.json').async('string');
+      const parsed = JSON.parse(jsonText);
+      // Reset cv
+      cv.personal = parsed.personal || cv.personal;
+      // create shallow copy of sections with empty files arrays
+      for (const s of Object.keys(cv.sections)){
+        cv.sections[s] = (parsed.sections && parsed.sections[s]) ? parsed.sections[s].map(e => ({ ...e, id: uid(), files: [] })) : [];
+      }
+      // Load files from zip into entries (matching by title)
+      // For each file in zip that's not cv.json, parse its path: section/title/filename
+      zip.forEach((relativePath, zipEntry) => {
+        if (relativePath === 'cv.json') return;
+        // parse path parts
+        const parts = relativePath.split('/').filter(Boolean);
+        if (parts.length < 2) return;
+        const sec = parts[0];
+        const title = parts[1];
+        const fileName = parts.slice(2).join('/');
+        if (!fileName) return;
+        const foundSection = cv.sections[sec];
+        if (!foundSection) return;
+        // find entry by title
+        const entry = foundSection.find(en => en.title === title);
+        if (!entry) return;
+        // read file as blob and push into entry.files
+        zipEntry.async('blob').then(b => {
+          entry.files.push({ name: fileName, size: b.size, type: b.type || '', blob: b });
+          renderSection(sec);
+        });
+      });
+      // render all sections
+      for (const s of Object.keys(cv.sections)) renderSection(s);
+      alert('Importación completada (si el ZIP contenía los archivos, se han añadido).');
+      e.target.value = '';
+    });
+
+    // Sanitize filename for folder paths
+    function sanitizeFilename(s){ return s.replace(/[\/\\:\*\?"<>\|]/g,'_').slice(0,80); }
+
+    // Initialize: render empty sections
+    for (const k of Object.keys(cv.sections)) renderSection(k);
+
+    // Wire personal inputs
+    const inputName = document.getElementById('inputName');
+    inputName.addEventListener('input', (e)=> cv.personal.name = e.target.value);
+    const inputEmail = document.getElementById('inputEmail');
+    inputEmail.addEventListener('input', (e)=> cv.personal.email = e.target.value);
+
+    // Convenience: add a sample entry for demonstration (comment out if not desired)
+    // sample demo:
+    if (confirm('¿Deseas cargar un ejemplo de entradas para ver cómo funciona?')) {
+      cv.sections.formacion.push({ id: uid(), title: 'Doctorado en Ciencias', year: '2018', description: 'Universidad Ejemplo', files: [] });
+      cv.sections.docencia.push({ id: uid(), title: 'Profesor ayudante', year: '2019-2021', description: 'Asignatura: Matemáticas', files: [] });
+      cv.sections.investigacion.push({ id: uid(), title: 'Proyecto X', year: '2020', description: 'Investigación sobre...', files: [] });
+      renderSection('formacion'); renderSection('docencia'); renderSection('investigacion');
+    }
+
+    // Optional: keyboard shortcut to export ZIP (Ctrl+E)
+    document.addEventListener('keydown', (e)=>{
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        document.getElementById('exportZip').click();
+      }
+    });
+  </script>
+</body>
+</html>
